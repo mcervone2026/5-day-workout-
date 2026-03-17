@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Workout Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body{font-family:system-ui,Arial;background:#f5f5f5;margin:0;padding:20px}
+.container{max-width:720px;margin:auto}
+h1{margin-bottom:10px}
+.day-buttons{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+button{padding:10px 14px;border-radius:10px;border:none;background:#111;color:white}
+.secondary{background:#666}
+.card{background:white;border-radius:16px;padding:14px;margin-bottom:10px;box-shadow:0 4px 10px rgba(0,0,0,0.08)}
+.inputs{display:flex;gap:10px;margin-top:8px}
+input{padding:8px;border-radius:8px;border:1px solid #ccc;width:50%}
+.timer{font-size:22px;font-weight:bold;margin:10px 0}
+.chart-container{background:white;border-radius:16px;padding:16px;margin-top:20px}
+</style>
+</head>
+
+<body>
+<div class="container">
+<h1>Workout Tracker</h1>
+
+<div class="day-buttons" id="dayButtons"></div>
+
+<div class="timer" id="timer">Rest Timer: 0</div>
+<button onclick="startRest(60)" class="secondary">Start 60s Rest</button>
+<button onclick="startRest(90)" class="secondary">Start 90s Rest</button>
+
+<div id="exerciseList"></div>
+
+<button onclick="nextExercise()">Next Exercise ▶</button>
+
+<div class="chart-container">
+<canvas id="progressChart"></canvas>
+</div>
+</div>
+
+<script>
+const workouts={
+Monday:["Incline Bench","Dips","Chest Flies","Preacher Curls","Standing Cable Curls","Abs"],
+Tuesday:["Lat Pulldowns","Upright Rows","Tricep Cable Pulldowns","Skull Crushers"],
+Wednesday:["Seated Leg Extensions","Reverse Leg Curls","Calf Raises","Shrugs","Military Dumbbell Press","Cable Delt Flies","Cable Rear Delt Flies","Abs"],
+Thursday:["Incline Bench","Chest Flies","Tricep Cable Pulldowns","Standing Cable Curls","Preacher Curls","Lat Pulldowns","Cuban Press","Cable Delt Flies"],
+Friday:["Seated Leg Extensions","Reverse Leg Curls","Abductor Machine","Adductor Machine","Calf Raises","Abs"]
+}
+
+let currentDay="Monday"
+let exerciseIndex=0
+let restInterval
+
+function saveData(key,value){
+localStorage.setItem(key,JSON.stringify(value))
+}
+
+function loadData(key){
+const d=localStorage.getItem(key)
+return d?JSON.parse(d):{}
+}
+
+function renderButtons(){
+const container=document.getElementById('dayButtons')
+container.innerHTML=''
+Object.keys(workouts).forEach(day=>{
+const btn=document.createElement('button')
+btn.innerText=day
+btn.onclick=()=>{currentDay=day;exerciseIndex=0;renderExercises()}
+container.appendChild(btn)
+})
+}
+
+function renderExercises(){
+const container=document.getElementById('exerciseList')
+container.innerHTML=''
+
+const saved=loadData('workoutData')
+
+workouts[currentDay].forEach((ex,i)=>{
+const card=document.createElement('div')
+card.className='card'
+if(i===exerciseIndex) card.style.border='3px solid #4CAF50'
+
+const title=document.createElement('div')
+title.innerText=ex
+
+const inputs=document.createElement('div')
+inputs.className='inputs'
+
+const weight=document.createElement('input')
+weight.placeholder='Weight'
+weight.type='number'
+weight.value=saved[ex]?.weight||''
+
+const reps=document.createElement('input')
+reps.placeholder='Reps'
+reps.type='number'
+reps.value=saved[ex]?.reps||''
+
+weight.onchange=()=>{
+saved[ex]={...saved[ex],weight:weight.value,date:new Date().toISOString()}
+saveData('workoutData',saved)
+updateChart()
+}
+
+reps.onchange=()=>{
+saved[ex]={...saved[ex],reps:reps.value,date:new Date().toISOString()}
+saveData('workoutData',saved)
+}
+
+inputs.appendChild(weight)
+inputs.appendChild(reps)
+
+card.appendChild(title)
+card.appendChild(inputs)
+container.appendChild(card)
+})
+}
+
+function nextExercise(){
+exerciseIndex++
+if(exerciseIndex>=workouts[currentDay].length) exerciseIndex=0
+renderExercises()
+}
+
+function startRest(seconds){
+clearInterval(restInterval)
+let remaining=seconds
+const timer=document.getElementById('timer')
+timer.innerText='Rest Timer: '+remaining
+
+restInterval=setInterval(()=>{
+remaining--
+timer.innerText='Rest Timer: '+remaining
+if(remaining<=0){
+clearInterval(restInterval)
+timer.innerText='Rest Finished ✔'
+}
+},1000)
+}
+
+let chart
+function updateChart(){
+const saved=loadData('workoutData')
+
+const labels=[]
+const data=[]
+
+Object.keys(saved).forEach(ex=>{
+if(saved[ex].weight){
+labels.push(ex)
+data.push(Number(saved[ex].weight))
+}
+})
+
+const ctx=document.getElementById('progressChart')
+
+if(chart) chart.destroy()
+
+chart=new Chart(ctx,{type:'bar',data:{labels:labels,datasets:[{label:'Weight Lifted',data:data}]}})
+}
+
+renderButtons()
+renderExercises()
+updateChart()
+
+</script>
+
+</body>
+</html>
